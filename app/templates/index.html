@@ -1,0 +1,135 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <title>Tetris-SocketIO Test</title>
+    <script type="text/javascript" src="//code.jquery.com/jquery-1.4.2.min.js"></script>
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/0.9.16/socket.io.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
+
+    <script type="text/javascript" charset="utf-8">
+        $(document).ready(function(){
+            namespace = '/test'; // change to an empty string to use the global namespace
+
+            // the socket.io documentation recommends sending an explicit package upon connection
+            // this is specially important when using the global namespace
+            var socket = io.connect('http://' + document.domain + ':' + location.port + namespace);
+            socket.on('connect', function() {
+                drawBoard();
+            });
+
+            // event handler for server sent data
+            // the data is displayed in the "Received" section of the page
+            socket.on('my response', function(msg) {
+                //$('#log').append('<br>Received # : ' + msg.data);
+                //colorPixel(msg.data, msg.r, msg.g, msg.b);
+                _.each(msg, function(element, index, list) {
+                  colorPixel(index, element.r, element.g, element.b);
+                });
+            });
+
+            var BOARD_HEIGHT = 16
+            var BOARD_WIDTH = 8
+
+            var c = document.getElementById("myCanvas");
+            var ctx = c.getContext("2d");
+            var board_map = [];
+
+            /**
+             * Returns a random integer between min (inclusive) and max (inclusive)
+             * Using Math.round() will give you a non-uniform distribution!
+             */
+            function getRandomInt(min, max) {
+                return Math.floor(Math.random() * (max - min + 1)) + min;
+            }
+
+            function componentToHex(c) {
+                var hex = c.toString(16);
+                return hex.length == 1 ? "0" + hex : hex;
+            }
+
+            function rgbToHex(r, g, b) {
+                return "#" + componentToHex(r) + componentToHex(g) + componentToHex(b);
+            }
+
+            function drawBoard() {
+                // board is made up of 2 8x8 squares ontop of each other
+                var x = 0;
+                y = 0;
+                var pos = 0;
+                for (var j = 0; j < BOARD_WIDTH; j++) {
+                    for (var i = 0; i < BOARD_HEIGHT/2; i++) {
+                        ctx.fillStyle = "black";
+                        ctx.fillRect(x, y, 20, 20);
+                        ctx.strokeStyle = "white";
+                        ctx.strokeRect(x, y, 20, 20);
+
+                        ctx.fillStyle = "red";
+                        ctx.fillText(pos, x, y + 10);
+                        board_map[pos] = {
+                            x: x,
+                            y: y
+                        };
+                        pos++;
+                        y += 20
+                    }
+                    x += 20;
+                    y = 0;
+                }
+
+                var x = 0;
+                var y = BOARD_HEIGHT/2 * 20;
+                for (var j = 0; j < BOARD_WIDTH; j++) {
+                    for (var i = 0; i < BOARD_HEIGHT/2; i++) {
+                        ctx.fillStyle = "black";
+                        ctx.fillRect(x, y, 20, 20);
+                        ctx.strokeStyle = "white";
+                        ctx.strokeRect(x, y, 20, 20);
+
+                        ctx.fillStyle = "red";
+                        ctx.fillText(pos, x, y + 10);
+                        board_map[pos] = {
+                            x: x,
+                            y: y
+                        };
+                        pos++;
+                        y += 20
+                    }
+                    x += 20;
+                    y = BOARD_HEIGHT/2 * 20;
+                }
+
+
+
+            }
+
+            function colorPixel(pos, r, g, b) {
+                var xy = board_map[pos];
+                ctx.fillStyle = rgbToHex(r, g, b);
+                ctx.fillRect(xy.x, xy.y, 20, 20);
+                ctx.strokeStyle = "white";
+                ctx.strokeRect(xy.x, xy.y, 20, 20);
+                ctx.fillStyle = "red";
+                ctx.fillText(pos, xy.x, xy.y + 10);
+            }
+
+            function clearPixel(pos) {
+                var xy = board_map[pos];
+                ctx.fillStyle = "#ffffff";
+                ctx.fillRect(xy.x, xy.y, 20, 20);
+                ctx.strokeStyle = "black";
+                ctx.strokeRect(xy.x, xy.y, 20, 20);
+
+                ctx.fillStyle = "#000000";
+                ctx.fillText(pos, xy.x, xy.y + 10);
+            }
+
+        });
+
+    </script>
+</head>
+<body>
+    <div id="log"></div>
+    <canvas id="myCanvas" width="500" height="500"></canvas>
+
+</body>
+</html>
