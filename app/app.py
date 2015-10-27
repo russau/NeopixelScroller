@@ -4,6 +4,7 @@
 # monkey.patch_all()
 
 import time
+import Scroller
 from threading import Thread
 from flask import Flask, render_template
 from flask.ext.socketio import SocketIO
@@ -19,6 +20,8 @@ def squaresEmitter(squares):
 def background_thread():
     print "starting thread"
     while True:
+        s = Scroller.Scroller(squaresEmitter)
+        s.scrollText()
         time.sleep(0.5)
     #     print "New Tetris class"
     #     t = Tetris.Tetris(squaresEmitter)
