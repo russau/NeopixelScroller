@@ -1,5 +1,8 @@
 import time
+import json
 from random import randint
+import boto.sqs
+
 try:
     from neopixel import *
 except ImportError:
@@ -267,8 +270,7 @@ class Scroller(object):
     def __init__(self, emitter):
         self.emitter = emitter
 
-    def scrollText(self):
-        s = "Hello from CloudFormation"
+    def scrollText(self, s):
 
         width = 6 * len(s) + 16
         height = 8
@@ -287,25 +289,28 @@ class Scroller(object):
 
         # based on https://github.com/adafruit/Adafruit-GFX-Library/blob/0acee33cfe8b500c5a2a1c4f29913746936b53ba/Adafruit_GFX.cpp#L437
         x = 16
-        y = 1
+        y = 0
 
         for ch in s:
             c = ord(ch)
-            for i in range(6):
-                line = font[(c * 5) + i]
-                if i == 5: line = 0x0
+            if c > 0 and c < 256:
+                for i in range(6):
+                    line = font[(c * 5) + i]
+                    if i == 5: line = 0x0
 
-                for j in range(8):
-                    if line & 0x01 == 1:
-                        # drawPixel(x+i, y+j, color);
-                        board[y+j][x+i] = {'r':0xe4, 'g':0xde, 'b':0x00}
-                    line >>= 1
-            x += 6
+                    for j in range(8):
+                        if line & 0x01 == 1:
+                            # drawPixel(x+i, y+j, color);
+                            if y+j < height and x+i < width:
+                                board[y+j][x+i] = {'r':0xe4, 'g':0xde, 'b':0x00}
+                        line >>= 1
+                x += 6
 
+        # loop thru the width of the text
         for _ in range(width):
+            # a pop one pixel of the 'y' for each row
             for y in range(height):
                 board[y].pop(0)
-
             squares = boardToLights(board)
             self.emitter(squares)
             time.sleep(0.1)
@@ -320,10 +325,10 @@ def boardToLights(board):
     for y in range(min(height, 8)):
         for x in range(min(width, 16)):
             if x < 8:
-                array_pos = (7-y) * 8 + x
+                array_pos = y * 8 + x
                 squares[array_pos] = board[y][x]
             elif x < 16:
-                array_pos = (7-y) * 8 + x-8 + 64
+                array_pos = y * 8 + x-8 + 64
                 squares[array_pos] = board[y][x]
 
     return squares
@@ -343,18 +348,32 @@ def squaresEmitter(squares):
     strip.show()
 
 if __name__ == '__main__':
-    # LED strip configuration:
-    LED_COUNT      = 128      # Number of LED pixels.
-    LED_PIN        = 18      # GPIO pin connected to the pixels (must support PWM!).
-    LED_FREQ_HZ    = 800000  # LED signal frequency in hertz (usually 800khz)
-    LED_DMA        = 5       # DMA channel to use for generating signal (try 5)
-    LED_BRIGHTNESS = 255     # Set to 0 for darkest and 255 for brightest
-    LED_INVERT     = False   # True to invert the signal (when using NPN transistor level shift)
-
-    strip = Adafruit_NeoPixel(LED_COUNT, LED_PIN, LED_FREQ_HZ, LED_DMA, LED_INVERT, LED_BRIGHTNESS)
-    strip.begin()
-    strip.setBrightness(30)
+    sqs = boto.sqs.connect_to_region("us-west-2")
+    queue = boto.sqs.queue.Queue(sqs, "http://us-west-2.queue.amazonaws.com/612895797421/NeopixelText")
+    s = Scroller(squaresEmitter)
 
     while True:
-        s = Scroller(squaresEmitter)
-        s.scrollText()
+        messages = queue.get_messages(num_messages=1, wait_time_seconds=10)
+        for m in messages:
+            body = json.loads(m.get_body())
+            message = body["Message"]
+            for item in message.split("\n"):
+                if item.startswith('LogicalResourceId=') or item.startswith('ResourceStatus='):
+                    print item
+
+
+    # # LED strip configuration:
+    # LED_COUNT      = 128      # Number of LED pixels.
+    # LED_PIN        = 18      # GPIO pin connected to the pixels (must support PWM!).
+    # LED_FREQ_HZ    = 800000  # LED signal frequency in hertz (usually 800khz)
+    # LED_DMA        = 5       # DMA channel to use for generating signal (try 5)
+    # LED_BRIGHTNESS = 255     # Set to 0 for darkest and 255 for brightest
+    # LED_INVERT     = False   # True to invert the signal (when using NPN transistor level shift)
+    #
+    # strip = Adafruit_NeoPixel(LED_COUNT, LED_PIN, LED_FREQ_HZ, LED_DMA, LED_INVERT, LED_BRIGHTNESS)
+    # strip.begin()
+    # strip.setBrightness(30)
+    #
+    # while True:
+    #     s = Scroller(squaresEmitter)
+    #     s.scrollText("Hello from CloudFormation!")

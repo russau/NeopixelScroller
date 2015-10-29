@@ -53,7 +53,7 @@
 
             function drawBoard() {
                 // board is made up of 2 8x8 squares ontop of each other
-                var x = 0;
+                var x = BOARD_WIDTH * 20;
                 y = 0;
                 var pos = 0;
                 for (var j = 0; j < BOARD_WIDTH; j++) {
@@ -72,11 +72,11 @@
                         pos++;
                         y += 20
                     }
-                    x += 20;
+                    x -= 20;
                     y = 0;
                 }
 
-                var x = 0;
+                var x = BOARD_WIDTH * 20;
                 var y = BOARD_HEIGHT/2 * 20;
                 for (var j = 0; j < BOARD_WIDTH; j++) {
                     for (var i = 0; i < BOARD_HEIGHT/2; i++) {
@@ -94,7 +94,7 @@
                         pos++;
                         y += 20
                     }
-                    x += 20;
+                    x -= 20;
                     y = BOARD_HEIGHT/2 * 20;
                 }
 
