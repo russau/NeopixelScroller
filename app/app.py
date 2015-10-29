@@ -53,6 +53,7 @@ def background_thread():
     sqs = boto.sqs.connect_to_region("us-west-2")
     queue = boto.sqs.queue.Queue(sqs, "http://us-west-2.queue.amazonaws.com/612895797421/NeopixelText")
     s = Scroller.Scroller(squaresEmitter)
+    s.scrollText("getting started...", 0, 255, 0)
 
     while True:
         messages = queue.get_messages(num_messages=1, wait_time_seconds=10)
@@ -65,15 +66,10 @@ def background_thread():
                     item = item.replace("ResourceStatus='", "")
                     item = item.replace("'", "")
                     print item
-                    s.scrollText(item)
+                    s.scrollText(item, 0, 0, 255)
             queue.delete_message(m)
 
-    #     print "New Tetris class"
-    #     t = Tetris.Tetris(squaresEmitter)
-    #     result = True
-    #
-    #     while result:
-    #         result = t.dropRandom()
+
 
 @app.route('/')
 def index():

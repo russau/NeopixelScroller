@@ -8,6 +8,24 @@ try:
 except ImportError:
     print "non-neopixel"
 
+gamma  = [
+    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,
+    1,  1,  1,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,
+    2,  3,  3,  3,  3,  3,  3,  3,  4,  4,  4,  4,  4,  5,  5,  5,
+    5,  6,  6,  6,  6,  7,  7,  7,  7,  8,  8,  8,  9,  9,  9, 10,
+   10, 10, 11, 11, 11, 12, 12, 13, 13, 13, 14, 14, 15, 15, 16, 16,
+   17, 17, 18, 18, 19, 19, 20, 20, 21, 21, 22, 22, 23, 24, 24, 25,
+   25, 26, 27, 27, 28, 29, 29, 30, 31, 32, 32, 33, 34, 35, 35, 36,
+   37, 38, 39, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 50,
+   51, 52, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 66, 67, 68,
+   69, 70, 72, 73, 74, 75, 77, 78, 79, 81, 82, 83, 85, 86, 87, 89,
+   90, 92, 93, 95, 96, 98, 99,101,102,104,105,107,109,110,112,114,
+  115,117,119,120,122,124,126,127,129,131,133,135,137,138,140,142,
+  144,146,148,150,152,154,156,158,160,162,164,167,169,171,173,175,
+  177,180,182,184,186,189,191,193,196,198,200,203,205,208,210,213,
+  215,218,220,223,225,228,231,233,236,239,241,244,247,249,252,255 ]
+
 font = [0x00, 0x00, 0x00, 0x00, 0x00,
 	0x3E, 0x5B, 0x4F, 0x5B, 0x3E,
 	0x3E, 0x6B, 0x4F, 0x6B, 0x3E,
@@ -270,7 +288,7 @@ class Scroller(object):
     def __init__(self, emitter):
         self.emitter = emitter
 
-    def scrollText(self, s):
+    def scrollText(self, s, r=0xe4, g=0xde, b=0x00):
 
         width = 6 * len(s) + 16
         height = 8
@@ -280,10 +298,7 @@ class Scroller(object):
             #  add 'blankness' before the 'text'
             row = []
             for x in range(width):
-                #if x < 16:
                 color = {'r':0x00, 'g':0x00, 'b':0x00}
-                #else:
-                #    color = {'r':0xe4, 'g':0xde, 'b':0x00} if (randint(0, 9) % 2) else {'r':0x00, 'g':0x4e, 'b':0xe4}
                 row.append(color)
             board.append(row)
 
@@ -302,7 +317,7 @@ class Scroller(object):
                         if line & 0x01 == 1:
                             # drawPixel(x+i, y+j, color);
                             if y+j < height and x+i < width:
-                                board[y+j][x+i] = {'r':0xe4, 'g':0xde, 'b':0x00}
+                                board[y+j][x+i] = {'r':r, 'g':g, 'b':b}
                         line >>= 1
                 x += 6
 
@@ -352,28 +367,45 @@ if __name__ == '__main__':
     queue = boto.sqs.queue.Queue(sqs, "http://us-west-2.queue.amazonaws.com/612895797421/NeopixelText")
     s = Scroller(squaresEmitter)
 
+    # LED strip configuration:
+    LED_COUNT      = 128      # Number of LED pixels.
+    LED_PIN        = 18      # GPIO pin connected to the pixels (must support PWM!).
+    LED_FREQ_HZ    = 800000  # LED signal frequency in hertz (usually 800khz)
+    LED_DMA        = 5       # DMA channel to use for generating signal (try 5)
+    LED_BRIGHTNESS = 50     # Set to 0 for darkest and 255 for brightest
+    LED_INVERT     = False   # True to invert the signal (when using NPN transistor level shift)
+
+    strip = Adafruit_NeoPixel(LED_COUNT, LED_PIN, LED_FREQ_HZ, LED_DMA, LED_INVERT, LED_BRIGHTNESS)
+    strip.begin()
+
+    sqs = boto.sqs.connect_to_region("us-west-2")
+    queue = boto.sqs.queue.Queue(sqs, "http://us-west-2.queue.amazonaws.com/612895797421/NeopixelText")
+    s = Scroller(squaresEmitter)
+    #s.scrollText("getting started...", 255, 0, 0)
+
+    colorCycle = [[0,21,255],[105,190,40],[155,161,162]]
+    colorPos = 0
+    scrolltext = ""
+    prevScrolltext = ""
     while True:
-        messages = queue.get_messages(num_messages=1, wait_time_seconds=10)
+        messages = queue.get_messages(num_messages=1, wait_time_seconds=5)
+        if len(messages) == 0:
+            print "no new message, repeating"
+            if prevScrolltext == "": prevScrolltext = "no news"
+            scrolltext = prevScrolltext # no messages, display the previous
         for m in messages:
             body = json.loads(m.get_body())
             message = body["Message"]
+            scrolltext = ""
+            queue.delete_message(m)
             for item in message.split("\n"):
                 if item.startswith('LogicalResourceId=') or item.startswith('ResourceStatus='):
-                    print item
+                    item = item.replace("LogicalResourceId='", "")
+                    item = item.replace("ResourceStatus='", "")
+                    item = item.replace("'", "")
+                    scrolltext = scrolltext + item + " "
 
-
-    # # LED strip configuration:
-    # LED_COUNT      = 128      # Number of LED pixels.
-    # LED_PIN        = 18      # GPIO pin connected to the pixels (must support PWM!).
-    # LED_FREQ_HZ    = 800000  # LED signal frequency in hertz (usually 800khz)
-    # LED_DMA        = 5       # DMA channel to use for generating signal (try 5)
-    # LED_BRIGHTNESS = 255     # Set to 0 for darkest and 255 for brightest
-    # LED_INVERT     = False   # True to invert the signal (when using NPN transistor level shift)
-    #
-    # strip = Adafruit_NeoPixel(LED_COUNT, LED_PIN, LED_FREQ_HZ, LED_DMA, LED_INVERT, LED_BRIGHTNESS)
-    # strip.begin()
-    # strip.setBrightness(30)
-    #
-    # while True:
-    #     s = Scroller(squaresEmitter)
-    #     s.scrollText("Hello from CloudFormation!")
+        print "[%s]" % scrolltext
+        prevScrolltext = scrolltext
+        s.scrollText(scrolltext, gamma[colorCycle[colorPos][0]], gamma[colorCycle[colorPos][1]], gamma[colorCycle[colorPos][2]])
+        colorPos = (colorPos + 1) % 3
