@@ -328,7 +328,7 @@ class Scroller(object):
                 board[y].pop(0)
             squares = boardToLights(board)
             self.emitter(squares)
-            time.sleep(0.1)
+            time.sleep(0.05)
 
 
 def boardToLights(board):
@@ -363,9 +363,6 @@ def squaresEmitter(squares):
     strip.show()
 
 if __name__ == '__main__':
-    sqs = boto.sqs.connect_to_region("us-west-2")
-    queue = boto.sqs.queue.Queue(sqs, "http://us-west-2.queue.amazonaws.com/612895797421/NeopixelText")
-    s = Scroller(squaresEmitter)
 
     # LED strip configuration:
     LED_COUNT      = 128      # Number of LED pixels.
@@ -378,10 +375,10 @@ if __name__ == '__main__':
     strip = Adafruit_NeoPixel(LED_COUNT, LED_PIN, LED_FREQ_HZ, LED_DMA, LED_INVERT, LED_BRIGHTNESS)
     strip.begin()
 
-    sqs = boto.sqs.connect_to_region("us-west-2")
-    queue = boto.sqs.queue.Queue(sqs, "http://us-west-2.queue.amazonaws.com/612895797421/NeopixelText")
+    sqs = boto.sqs.connect_to_region("us-east-1")
+    queue = boto.sqs.queue.Queue(sqs, "http://sqs.us-east-1.amazonaws.com/487005042719/testQ")
     s = Scroller(squaresEmitter)
-    #s.scrollText("getting started...", 255, 0, 0)
+    s.scrollText("...", 255, 0, 0)
 
     colorCycle = [[0,21,255],[105,190,40],[155,161,162]]
     colorPos = 0
@@ -391,19 +388,23 @@ if __name__ == '__main__':
         messages = queue.get_messages(num_messages=1, wait_time_seconds=5)
         if len(messages) == 0:
             print "no new message, repeating"
-            if prevScrolltext == "": prevScrolltext = "no news"
-            scrolltext = prevScrolltext # no messages, display the previous
+            if prevScrolltext == "": prevScrolltext = "..."
+            scrolltext = prevScrolltext  # no messages, display the previous
         for m in messages:
-            body = json.loads(m.get_body())
-            message = body["Message"]
-            scrolltext = ""
-            queue.delete_message(m)
-            for item in message.split("\n"):
-                if item.startswith('LogicalResourceId=') or item.startswith('ResourceStatus='):
-                    item = item.replace("LogicalResourceId='", "")
-                    item = item.replace("ResourceStatus='", "")
-                    item = item.replace("'", "")
-                    scrolltext = scrolltext + item + " "
+            try:
+                body = json.loads(m.get_body())
+                message = body["Message"]
+                scrolltext = ""
+                for item in message.split("\n"):
+                    if item.startswith('LogicalResourceId=') or item.startswith('ResourceStatus='):
+                        item = item.replace("LogicalResourceId='", "")
+                        item = item.replace("ResourceStatus='", "")
+                        item = item.replace("'", "")
+                        scrolltext = scrolltext + item + " "
+                queue.delete_message(m)
+            except ValueError, e:
+                scrolltext = m.get_body() 
+                queue.delete_message(m)
 
         print "[%s]" % scrolltext
         prevScrolltext = scrolltext
